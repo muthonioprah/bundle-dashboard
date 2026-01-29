@@ -1,29 +1,29 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import os
 
 st.set_page_config(page_title="Bundle Dashboard", layout="wide")
 st.title("📊 Bundle Performance Dashboard")
-st.markdown("Upload the Excel file shared via OneDrive to view interactive charts")
+st.markdown("Data loaded automatically — no upload required")
 
-uploaded_file = st.file_uploader(
-    "Upload Book1_20260129.xlsx",
-    type=['xlsx', 'xls'],
-    help="Download the file from the OneDrive link shared with you, then upload here"
-)
-
-if uploaded_file is None:
-    st.info("👆 Upload the Excel file to see charts")
-    st.stop()
-
+# Auto-load data from repo
 try:
-    df = pd.read_excel(uploaded_file, na_values=['#N/A', 'NA', '#VALUE!', '#DIV/0!'])
+    # Streamlit Cloud mounts repo at /mount/src/APP_NAME
+    data_path = "/mount/src/bundle-dashboard/bundle_data.xlsx"
+    
+    # Fallback for local testing
+    if not os.path.exists(data_path):
+        data_path = "bundle_data.xlsx"
+    
+    df = pd.read_excel(data_path, na_values=['#N/A', 'NA'])
+    st.success(f"✅ Loaded {len(df):,} records from bundle_data.xlsx")
 except Exception as e:
-    st.error(f"Error reading file: {e}")
+    st.error(f"❌ Error loading data: {e}")
     st.stop()
 
 # Clean data
-df = df.dropna(subset=['Bundle Name', 'MSISDN']).copy()
+df = df.dropna(subset=['Bundle Name']).copy()
 df['Revenue'] = pd.to_numeric(df['Revenue'], errors='coerce')
 df['Data_MBs'] = pd.to_numeric(df['Data_MBs'], errors='coerce')
 
@@ -58,7 +58,7 @@ else:
 
 # CHART 2: Revenue vs Data Volume (EXCLUDES NA Data Volume)
 st.subheader("Chart 2: Revenue vs Data Volume (NA Data Volume Excluded)")
-df2 = df.dropna(subset=['Revenue', 'Data_MBs']).copy()  # CRITICAL: Excludes NA Data Volume
+df2 = df.dropna(subset=['Revenue', 'Data_MBs']).copy()
 if len(df2) > 0:
     chart2 = df2.groupby('Bundle Name').agg(
         msisdn_count=('MSISDN', 'count'),
@@ -84,7 +84,7 @@ if len(df2) > 0:
     fig2.update_xaxes(tickangle=45)
     st.plotly_chart(fig2, use_container_width=True)
 else:
-    st.warning("No valid data volume records found (all NA?)")
+    st.warning("No valid data volume records found")
 
 st.markdown("---")
-st.caption("✅ Hover over bubbles to see details | Data processed in-browser (not stored)")
+st.caption("✅ Data loaded automatically | Updated: January 2026")
